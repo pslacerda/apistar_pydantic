@@ -164,6 +164,7 @@ def test_renderer(app_class):
     res = client.get('/render')
     assert res.json() == expected
 
+
 @pytest.mark.parametrize('app_class', [ASyncIOApp, WSGIApp])
 def test_renderer_mixed(app_class):
 
@@ -180,5 +181,3 @@ def test_renderer_mixed(app_class):
     assert res.json() == {
         'model': [expected]
     }
-
-
