@@ -22,21 +22,18 @@ class Model(BaseModel):
         }
 
 
-@pytest.fixture
-def client_factory():
-    def factory(app_class, routes):
-        app = app_class(
-            settings={
-                'RENDERERS': [JSONRenderer()]
-            },
-            routes=routes
-        )
-        return TestClient(app)
-    return factory
+def client_factory(app_class, routes):
+    app = app_class(
+        settings={
+            'RENDERERS': [JSONRenderer()]
+        },
+        routes=routes
+    )
+    return TestClient(app)
 
 
 @pytest.mark.parametrize('app_class', [ASyncIOApp, WSGIApp])
-def test_url(app_class, client_factory):
+def test_url(app_class):
     def url_argument_view(arg1: str):
         return arg1.upper()
 
@@ -48,7 +45,7 @@ def test_url(app_class, client_factory):
 
 
 @pytest.mark.parametrize('app_class', [ASyncIOApp, WSGIApp])
-def test_query_simple(app_class, client_factory):
+def test_query_simple(app_class):
     def query_argument_simple_view(arg1: int):
         return arg1 * 10
 
@@ -70,7 +67,7 @@ expected = {
 
 
 @pytest.mark.parametrize('app_class', [ASyncIOApp, WSGIApp])
-def test_query_model(app_class, client_factory):
+def test_query_model(app_class):
     class QueryModel(Model, QueryParam):
         pass
 
@@ -86,7 +83,7 @@ def test_query_model(app_class, client_factory):
 
 
 @pytest.mark.parametrize('app_class', [ASyncIOApp, WSGIApp])
-def test_form_model(app_class, client_factory):
+def test_form_model(app_class):
     class FormModel(BaseModel, FormData):
         integer: List[int]
         text: List[str]
@@ -109,7 +106,7 @@ def test_form_model(app_class, client_factory):
 
 
 @pytest.mark.parametrize('app_class', [ASyncIOApp, WSGIApp])
-def test_body_model(app_class, client_factory):
+def test_body_model(app_class):
 
     class BodyModel(Model, BodyData):
         pass
@@ -121,5 +118,46 @@ def test_body_model(app_class, client_factory):
         Route('/body_argument', 'PUT', body_argument_view)
     ])
     res = client.put('/body_argument', json=args)
+    assert res.json() == expected
+
+
+@pytest.mark.parametrize('app_class', [ASyncIOApp, WSGIApp])
+def test_mixed_arguments(app_class):
+    class QueryModel(Model, QueryParam):
+        pass
+
+    class BodyModel(Model, BodyData):
+        pass
+
+    def mixed_arguments_view(query: QueryModel, body: BodyModel):
+        return query.integer * body.integer * query.text
+
+    client = client_factory(app_class, [
+        Route('/mixed_arguments', 'POST', mixed_arguments_view)
+    ])
+
+    res = client.post('/mixed_arguments', params={
+        'integer': 2,
+        'text': 'a'
+    }, json={
+        'integer': 2,
+        'text': ''
+    })
+    assert res.json() == 'aaaa'
+
+
+@pytest.mark.parametrize('app_class', [ASyncIOApp, WSGIApp])
+def test_renderer(app_class):
+
+    def render() -> Model:
+        return Model(
+            integer=100,
+            text='ABC'
+        )
+    client = client_factory(app_class, [
+        Route('/render', 'GET', render)
+    ])
+
+    res = client.get('/render')
     assert res.json() == expected
 
