@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict
 
 import pytest
 
@@ -136,13 +136,16 @@ def test_mixed_arguments(app_class):
         Route('/mixed_arguments', 'POST', mixed_arguments_view)
     ])
 
-    res = client.post('/mixed_arguments', params={
-        'integer': 2,
-        'text': 'a'
-    }, json={
-        'integer': 2,
-        'text': ''
-    })
+    res = client.post(
+        '/mixed_arguments',
+        params={
+            'integer': 2,
+            'text': 'a'
+        },
+        json={
+            'integer': 2,
+            'text': ''
+        })
     assert res.json() == 'aaaa'
 
 
@@ -160,4 +163,22 @@ def test_renderer(app_class):
 
     res = client.get('/render')
     assert res.json() == expected
+
+@pytest.mark.parametrize('app_class', [ASyncIOApp, WSGIApp])
+def test_renderer_mixed(app_class):
+
+    def render() -> Dict[str, List[Model]]:
+        return {
+            'model': [Model(integer=100, text='ABC')]
+        }
+
+    client = client_factory(app_class, [
+        Route('/render', 'GET', render)
+    ])
+
+    res = client.get('/render')
+    assert res.json() == {
+        'model': [expected]
+    }
+
 

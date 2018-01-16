@@ -1,4 +1,5 @@
 import inspect
+import json
 from typing import Any, Callable, Tuple, Optional
 
 import pydantic
@@ -161,9 +162,10 @@ class ASyncIOApp(ASyncIOApp):
 
 class JSONRenderer(JSONRenderer):
 
+    @staticmethod
+    def default(obj):
+        if isinstance(obj, pydantic.BaseModel):
+            return obj.dict()
+
     def render(self, data: http.ResponseData) -> bytes:
-        if isinstance(data, pydantic.BaseModel):
-           value = data.dict()
-        else:
-            value = data
-        return super().render(value)
+        return json.dumps(data, default=self.default).encode('utf-8')

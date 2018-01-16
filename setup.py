@@ -1,24 +1,18 @@
 #!/usr/bin/env python3
 
-from setuptools import setup, find_packages
+from setuptools import setup
 
-# with open('README.md') as readme_file:
-#     readme = readme_file.read()
-#
-# with open('HISTORY.md') as history_file:
-#     history = history_file.read()
-
-readme = ''
-history = ''
+with open('README.md') as readme_file:
+    readme = readme_file.read()
 
 setup(
     name='apistar_pydantic',
     version='0.0.1',
     description="pydantic support for APIStar",
-    long_description=readme + '\n\n' + history,
+    long_description=readme,
     author="Pedro Sousa Lacerda",
     author_email='pslacerda@gmail.com',
-    # url='https://github.com/audiolion/apistar-jwt',
+    url='https://bitbucket.org/gerenciagram/apistar-pydantic',
     py_modules=['apistar_pydantic'],
     install_requires=[
         'apistar',
