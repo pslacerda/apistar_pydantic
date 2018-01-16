@@ -14,6 +14,7 @@ setup(
     author_email='pslacerda@gmail.com',
     url='https://bitbucket.org/gerenciagram/apistar-pydantic',
     py_modules=['apistar_pydantic'],
+    include_package_data=True,
     install_requires=[
         'apistar',
         'pydantic'
