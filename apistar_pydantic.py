@@ -4,7 +4,7 @@ from typing import Any, Callable, Tuple, Optional
 
 import pydantic
 
-from apistar import exceptions, http, typesystem
+from apistar import exceptions, http
 from apistar.interfaces import Injector
 from apistar.components import dependency
 from apistar.frameworks.wsgi import WSGIApp
@@ -18,11 +18,11 @@ from apistar.types import (
 __all__ = [
     'ASyncIOApp', 'WSGIApp',
     'JSONRenderer',
-    'QueryParam', 'FormData', 'BodyData'
+    'QueryData', 'FormData', 'BodyData'
 ]
 
 
-class QueryParam:
+class QueryData:
     pass
 
 
@@ -64,7 +64,7 @@ class PydanticHTTPResolver(dependency.HTTPResolver):
             key = 'empty:' + param.name
             return key, self.empty
 
-        elif issubclass(annotation, (str, int, float, bool, QueryParam)):
+        elif issubclass(annotation, (str, int, float, bool, QueryData)):
             return key, self.url_or_query_argument
 
         elif issubclass(annotation, (dict, list, BodyData)):

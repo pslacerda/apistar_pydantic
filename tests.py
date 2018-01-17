@@ -6,7 +6,7 @@ from apistar import Route
 from apistar.test import TestClient
 from pydantic import BaseModel
 from apistar_pydantic import (
-    ASyncIOApp, WSGIApp, QueryParam, FormData, BodyData,
+    ASyncIOApp, WSGIApp, QueryData, FormData, BodyData,
     JSONRenderer
 )
 
@@ -68,7 +68,7 @@ expected = {
 
 @pytest.mark.parametrize('app_class', [ASyncIOApp, WSGIApp])
 def test_query_model(app_class):
-    class QueryModel(Model, QueryParam):
+    class QueryModel(Model, QueryData):
         pass
 
     def query_argument_view(model: QueryModel):
@@ -123,7 +123,7 @@ def test_body_model(app_class):
 
 @pytest.mark.parametrize('app_class', [ASyncIOApp, WSGIApp])
 def test_mixed_arguments(app_class):
-    class QueryModel(Model, QueryParam):
+    class QueryModel(Model, QueryData):
         pass
 
     class BodyModel(Model, BodyData):

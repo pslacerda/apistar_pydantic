@@ -25,11 +25,9 @@ from apistar_pydantic import (
 )
 from pydantic import BaseModel
 
-
 class CityQuery(BaseModel, QueryParam):
     name: str
     population: int
-
 
 class ComputerBody(BaseModel, BodyData):
     model: str
