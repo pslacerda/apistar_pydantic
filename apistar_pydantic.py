@@ -1,6 +1,6 @@
 import inspect
 import json
-from typing import Any, Callable, Tuple, Optional
+from typing import Any, Callable, Tuple, Optional, Mapping
 
 import pydantic
 
@@ -22,16 +22,26 @@ __all__ = [
 ]
 
 
-class QueryData:
+class HTTPParameterData:
+    def __getitem__(self, type_cls):
+        return type(type_cls.__name__, (type_cls, self.__class__), {})
+
+
+class _QueryData(HTTPParameterData):
     pass
 
 
-class FormData:
+class _FormData(HTTPParameterData):
     pass
 
 
-class BodyData:
+class _BodyData(HTTPParameterData):
     pass
+
+
+QueryData = _QueryData()
+FormData = _FormData()
+BodyData = _BodyData()
 
 
 class PydanticHTTPResolver(dependency.HTTPResolver):
@@ -39,20 +49,14 @@ class PydanticHTTPResolver(dependency.HTTPResolver):
     Handles resolving parameters for HTTP requests with pydantic.
     """
 
-    @staticmethod
-    def coerce(type_cls, value):
-        if value is None or isinstance(value, type_cls):
+    @classmethod
+    def coerce(cls, type_func, value):
+        if value is None or isinstance(value, type_func):
             return value
-        return type_cls(value)
-
-    @staticmethod
-    def coerce_model(model_cls, data):
-        try:
-            return model_cls(**data)
-        except pydantic.ValidationError as exc:
-            raise exceptions.ValidationError(
-                detail=exc.errors_dict
-            )
+        if issubclass(type_func, pydantic.BaseModel):
+            if isinstance(value, Mapping):
+                return type_func(**value)
+        return type_func(value)
 
     def resolve(self,
                 param: inspect.Parameter,
@@ -63,18 +67,13 @@ class PydanticHTTPResolver(dependency.HTTPResolver):
         if annotation is inspect.Parameter.empty:
             key = 'empty:' + param.name
             return key, self.empty
-
-        elif issubclass(annotation, (str, int, float, bool, QueryData)):
+        elif issubclass(annotation, (str, int, float, bool, _QueryData)):
             return key, self.url_or_query_argument
-
-        elif issubclass(annotation, (dict, list, BodyData)):
+        elif issubclass(annotation, (dict, list, _BodyData)):
             return key, self.body_argument
-
-        elif issubclass(annotation, FormData):
+        elif issubclass(annotation, _FormData):
             return key, self.form_argument
-
-        else:
-            return None
+        return None
 
     def url_argument(self,
                      name: ParamName,
@@ -86,10 +85,10 @@ class PydanticHTTPResolver(dependency.HTTPResolver):
                        name: ParamName,
                        query_params: http.QueryParams,
                        coerce: ParamAnnotation) -> Any:
-        if issubclass(coerce, pydantic.BaseModel):
-            return self.coerce_model(coerce, dict(query_params))
-        else:
-            return self.coerce(coerce, query_params.get(name))
+        value = query_params.get(name)
+        if issubclass(coerce, _QueryData):
+            value = query_params
+        return self.coerce(coerce, value)
 
     def form_argument(self,
                       data: http.RequestData,
@@ -99,15 +98,12 @@ class PydanticHTTPResolver(dependency.HTTPResolver):
             raise exceptions.ValidationError(
                 detail='Request data must be an object.'
             )
-        return self.coerce_model(coerce, data)
+        return self.coerce(coerce, data)
 
     def body_argument(self,
                       data: http.RequestData,
                       coerce: ParamAnnotation) -> Any:
-        if isinstance(data, dict):
-            return self.coerce_model(coerce, data)
-        else:
-            return self.coerce(coerce, data)
+        return self.coerce(coerce, data)
 
 
 class WSGIApp(WSGIApp):

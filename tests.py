@@ -68,10 +68,8 @@ expected = {
 
 @pytest.mark.parametrize('app_class', [ASyncIOApp, WSGIApp])
 def test_query_model(app_class):
-    class QueryModel(Model, QueryData):
-        pass
 
-    def query_argument_view(model: QueryModel):
+    def query_argument_view(model: QueryData[Model]):
         return model.compute()
 
     client = client_factory(app_class, [
@@ -84,7 +82,7 @@ def test_query_model(app_class):
 
 @pytest.mark.parametrize('app_class', [ASyncIOApp, WSGIApp])
 def test_form_model(app_class):
-    class FormModel(BaseModel, FormData):
+    class FormModel(BaseModel):
         integer: List[int]
         text: List[str]
 
@@ -94,7 +92,7 @@ def test_form_model(app_class):
                 'text': self.text[0].upper()
             }
 
-    def form_argument_view(model: FormModel):
+    def form_argument_view(model: FormData[FormModel]):
         return model.compute()
 
     client = client_factory(app_class, [
@@ -108,10 +106,7 @@ def test_form_model(app_class):
 @pytest.mark.parametrize('app_class', [ASyncIOApp, WSGIApp])
 def test_body_model(app_class):
 
-    class BodyModel(Model, BodyData):
-        pass
-
-    def body_argument_view(model: BodyModel):
+    def body_argument_view(model: BodyData[Model]):
         return model.compute()
 
     client = client_factory(app_class, [
@@ -123,13 +118,9 @@ def test_body_model(app_class):
 
 @pytest.mark.parametrize('app_class', [ASyncIOApp, WSGIApp])
 def test_mixed_arguments(app_class):
-    class QueryModel(Model, QueryData):
-        pass
 
-    class BodyModel(Model, BodyData):
-        pass
-
-    def mixed_arguments_view(query: QueryModel, body: BodyModel):
+    def mixed_arguments_view(query: QueryData[Model],
+                             body: BodyData[Model]):
         return query.integer * body.integer * query.text
 
     client = client_factory(app_class, [

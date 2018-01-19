@@ -21,30 +21,42 @@ from typing import Dict
 from apistar import Route
 from apistar_pydantic import (
     WSGIApp as App,
-    QueryParam, BodyData
+    QueryData, BodyData, FormData
 )
 from pydantic import BaseModel
 
-class CityQuery(BaseModel, QueryParam):
+#
+# Declare models
+#
+
+class City(BaseModel):
     name: str
     population: int
 
-class ComputerBody(BaseModel, BodyData):
+class Computer(BaseModel):
     model: str
     price: float
 
-def resource_query(city: CityQuery) -> str:
+#
+# Create views
+#
+
+def resource_query(city: QueryData[City]) -> str:
     return "%s has %d citizens." % (city.name, city.population)
 
-def resource_body(computer: ComputerBody) -> str:
+def resource_body(computer: BodyData[Computer]) -> str:
     return "%s costs R$ %.2f" % (computer.model, computer.price)
 
-def resource_mixed(city: CityQuery,
-                   computer: ComputerBody) -> Dict[str, BaseModel]:
+def resource_mixed(city: QueryData[City],
+                   computer: BodyData[Computer]) -> Dict[str, BaseModel]:
     return {
         'city': city,
         'computer': computer
     }
+
+#
+# Start the app
+#
 
 app = App(
     routes=[
