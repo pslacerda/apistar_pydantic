@@ -1,10 +1,16 @@
 from typing import List, Dict
 
 import pytest
+import coreschema
 
 from apistar import Route
 from apistar.test import TestClient
+from apistar.handlers import serve_schema
+from apistar.interfaces import Schema
 from pydantic import BaseModel
+from coreapi import Field, Link
+from coreapi.codecs import CoreJSONCodec
+
 from apistar_pydantic import (
     ASyncIOApp, WSGIApp, QueryData, FormData, BodyData,
     JSONRenderer
@@ -172,3 +178,109 @@ def test_renderer_mixed(app_class):
     assert res.json() == {
         'model': [expected]
     }
+
+
+@pytest.mark.parametrize('app_class', [ASyncIOApp, WSGIApp])
+def test_schema(app_class):
+
+    def add_model(model: BodyData[Model]):
+        """
+            add_model description
+        """
+        return model.integer
+
+    def list_models():
+        """list_models description"""
+        return
+
+    def show_model(id: int):
+        """show_model description"""
+        return
+
+    def show_model2(id: int):
+        """show_model2 description"""
+        return
+
+    app = app_class(
+        routes=[
+            Route('/add_model', 'POST', add_model),
+            Route('/list_models', 'GET', list_models),
+            Route('/show_model', 'GET', show_model),
+            Route('/show/model/{id}', 'GET', show_model2),
+            Route('/schema', 'GET', serve_schema),
+        ],
+        settings={
+            'SCHEMA': {'TITLE': 'My API'}
+        }
+    )
+    client = TestClient(app)
+
+    schema = Schema(title='My API', url='/schema/', content={
+        'add_model': Link(
+            url='/add_model',
+            action='POST',
+            description='add_model description',
+            fields=[
+                Field(
+                    name='integer',
+                    location='form',
+                    required=True,
+                    schema=coreschema.Integer()
+                ),
+                Field(
+                    name='text',
+                    location='form',
+                    required=True,
+                    schema=coreschema.String()
+                )
+            ]
+        ),
+        'list_models': Link(
+            url='/list_models',
+            action='GET',
+            description='list_models description',
+            fields=[]
+        ),
+        'show_model': Link(
+            url='/show_model',
+            action='GET',
+            description='show_model description',
+            fields=[
+                Field(
+                    name='id',
+                    location='query',
+                    required=True,
+                    schema=coreschema.Integer()
+                )
+            ]
+        ),
+        'show_model2': Link(
+            url='/show/model/{id}',
+            action='GET',
+            description='show_model2 description',
+            fields=[
+                Field(
+                    name='id',
+                    location='path',
+                    required=True,
+                    schema=coreschema.Integer()
+                )
+            ]
+        )
+    })
+
+    res = client.get('/schema')
+    assert res.status_code == 200
+
+    codec = CoreJSONCodec()
+    document = codec.decode(res.content)
+
+    assert document.url == '/schema'
+    assert document.title == schema.title
+    for name, link in schema.links.items():
+        assert name in document
+        assert link.url == document[name].url
+        assert link.action == document[name].action
+        assert link.description == document[name].description
+        for expected, result in zip(sorted(link.fields), sorted(document[name].fields)):
+            assert expected.__class__ == result.__class__
