@@ -12,13 +12,16 @@ setup(
     long_description=readme,
     author="Pedro Sousa Lacerda",
     author_email='pslacerda@gmail.com',
-    url='https://bitbucket.org/gerenciagram/apistar-pydantic',
+    url='github.com/pslacerda/apistar_pydantic',
     py_modules=['apistar_pydantic'],
     include_package_data=True,
     zip_safe=False,
     install_requires=[
         'apistar',
-        'pydantic'
+        'pydantic',
+        'coreapi',
+        'coreschema',
+        'uritemplate'
     ],
     license="MIT license",
     keywords='apistar_pydantic',
