@@ -1,4 +1,3 @@
-import collections
 import enum
 import inspect
 import json
@@ -11,7 +10,6 @@ import pydantic
 import coreapi
 import uritemplate
 import coreschema
-
 from apistar import exceptions, http, Settings, Route, Component
 from apistar.core import flatten_routes
 from apistar.interfaces import (
@@ -19,7 +17,7 @@ from apistar.interfaces import (
     Console, SessionStore
 )
 from apistar.components import (
-    dependency, schema, templates, statics, router, commandline, console,
+    dependency, templates, statics, router, commandline, console,
     sessions
 )
 from apistar.frameworks.wsgi import WSGIApp
@@ -166,7 +164,7 @@ class CoreAPISchema(Schema):
     @classmethod
     def get_field(cls,
                   param: inspect.Parameter,
-                  path_names: Set[str]) -> Optional[coreapi.Field]:
+                  path_names: Set[str]) -> List[coreapi.Field]:
         field_type = param.annotation
         if field_type is inspect.Signature.empty:
             field_type = str
@@ -303,5 +301,3 @@ class JSONRenderer(JSONRenderer):
 
     def render(self, data: http.ResponseData) -> bytes:
         return json.dumps(data, default=self.default).encode('utf-8')
-
-
