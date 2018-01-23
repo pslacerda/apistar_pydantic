@@ -11,3 +11,4 @@ postgres-data/
 .coverage
 .tox/
 *.egg-info/
+dist/

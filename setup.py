@@ -6,13 +6,13 @@ with open('README.md') as readme_file:
     readme = readme_file.read()
 
 setup(
-    name='apistar_pydantic',
+    name='apistar-pydantic',
     version='0.0.1',
     description="pydantic support for APIStar",
     long_description=readme,
     author="Pedro Sousa Lacerda",
     author_email='pslacerda@gmail.com',
-    url='github.com/pslacerda/apistar_pydantic',
+    url='https://github.com/pslacerda/apistar_pydantic',
     py_modules=['apistar_pydantic'],
     include_package_data=True,
     zip_safe=False,
@@ -32,7 +32,6 @@ setup(
         'Natural Language :: English',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.6',
-        'Framework :: APIStar',
     ],
     test_suite='tests',
     tests_require=[
