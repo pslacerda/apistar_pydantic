@@ -1,4 +1,5 @@
 import enum
+import datetime
 import inspect
 import json
 import textwrap
@@ -298,6 +299,8 @@ class JSONRenderer(JSONRenderer):
     def default(obj):
         if isinstance(obj, pydantic.BaseModel):
             return obj.dict()
+        if isinstance(obj, datetime.datetime):
+            return obj.timestamp()
 
     def render(self, data: http.ResponseData) -> bytes:
         return json.dumps(data, default=self.default).encode('utf-8')

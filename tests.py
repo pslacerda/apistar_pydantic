@@ -1,3 +1,4 @@
+import datetime
 from typing import List, Dict
 
 import pytest
@@ -181,6 +182,22 @@ def test_renderer_mixed(app_class):
 
 
 @pytest.mark.parametrize('app_class', [ASyncIOApp, WSGIApp])
+def test_renderer_datetime(app_class):
+
+    now = datetime.datetime.now()
+
+    def render() -> datetime.datetime:
+        return now
+
+    client = client_factory(app_class, [
+        Route('/render', 'GET', render)
+    ])
+
+    res = client.get('/render')
+    assert res.json() == now.timestamp()
+
+
+@pytest.mark.parametrize('app_class', [ASyncIOApp, WSGIApp])
 def test_schema(app_class):
 
     def add_model(model: BodyData[Model]):
@@ -284,3 +301,4 @@ def test_schema(app_class):
         assert link.description == document[name].description
         for expected, result in zip(sorted(link.fields), sorted(document[name].fields)):
             assert expected.__class__ == result.__class__
+
