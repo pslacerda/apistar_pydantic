@@ -22,7 +22,7 @@ Notes
 Usage
 =====
 
-.. code-block:: python3
+.. code-block:: python
 
     from apistar import Route, Include
     from apistar.handlers import static_urls, docs_urls
