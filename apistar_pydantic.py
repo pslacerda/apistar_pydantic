@@ -1,16 +1,16 @@
 import enum
-import datetime
 import inspect
 import json
 import textwrap
+from datetime import datetime
 from typing import (
     Any, Callable, Tuple, Optional, Mapping, List, Set, Type, cast
 )
 
-import pydantic
 import coreapi
-import uritemplate
 import coreschema
+import uritemplate
+import pydantic
 from apistar import exceptions, http, Settings, Route, Component
 from apistar.core import flatten_routes
 from apistar.interfaces import (
@@ -128,6 +128,8 @@ class PydanticHTTPResolver(dependency.HTTPResolver):
 
 class CoreAPISchema(Schema):
 
+    native_types = [int, float, str, bool, datetime]
+
     def __init__(self,
                  router: Router,
                  routes: RouteConfig,
@@ -216,7 +218,7 @@ class CoreAPISchema(Schema):
 
     @classmethod
     def get_docstring(cls, obj: Type, default: Optional[str]) -> str:
-        if obj.__doc__:
+        if obj.__doc__ and obj not in cls.native_types:
             return textwrap.dedent(obj.__doc__).strip()
         else:
             return default
@@ -299,8 +301,11 @@ class JSONRenderer(JSONRenderer):
     def default(obj):
         if isinstance(obj, pydantic.BaseModel):
             return obj.dict()
-        if isinstance(obj, datetime.datetime):
+        if isinstance(obj, datetime):
             return obj.timestamp()
+        raise TypeError(
+            f"Object of type '{obj.__class__.__name__}' is not JSON serializable"
+        )
 
     def render(self, data: http.ResponseData) -> bytes:
         return json.dumps(data, default=self.default).encode('utf-8')

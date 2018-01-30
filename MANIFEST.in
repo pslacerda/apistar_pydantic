@@ -1,3 +1,3 @@
-recursive-include * *.md
+recursive-include * *.rst
 include * tests.py
 recursive-exclude * __pycache__

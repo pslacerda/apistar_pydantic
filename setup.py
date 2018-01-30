@@ -2,12 +2,12 @@
 
 from setuptools import setup
 
-with open('README.md') as readme_file:
+with open('README.rst') as readme_file:
     readme = readme_file.read()
 
 setup(
     name='apistar-pydantic',
-    version='0.0.2',
+    version='0.0.3',
     description="pydantic support for APIStar",
     long_description=readme,
     author="Pedro Sousa Lacerda",
