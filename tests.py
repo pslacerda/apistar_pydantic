@@ -1,48 +1,63 @@
-import datetime
-from typing import List, Dict
-
 import pytest
-import coreschema
 
-from apistar import Route
+from apistar import App, ASyncApp
 from apistar.test import TestClient
-from apistar.handlers import serve_schema
-from apistar.interfaces import Schema
+from apistar.http import JSONResponse
 from pydantic import BaseModel
-from coreapi import Field, Link
-from coreapi.codecs import CoreJSONCodec
 
 from apistar_pydantic import (
-    ASyncIOApp, WSGIApp, QueryData, FormData, BodyData,
-    JSONRenderer
+    PathParam, QueryParam, DictBodyData, DictQueryData,
+    PydanticBodyData, PydanticQueryData,
+    Route, components,
 )
 
 
-class Model(BaseModel):
+def _compute(self):
+    return {
+        'integer': 10 * self.integer,
+        'text': self.text.upper()
+    }
+
+
+class Model(dict):
+
+    def __init__(self, value):
+        try:
+            new_value = {}
+            new_value['integer'] = int(value['integer'])
+            new_value['text'] = str(value['text'])
+            super().__init__(new_value)
+        except Exception:
+            raise Exception("Invalid model")
+
+    def __getattr__(self, key):
+        return self[key]
+
+    compute = _compute
+
+
+class PydanticModel(BaseModel):
     integer: int
     text: str
 
-    def compute(self):
-        return {
-            'integer': 10 * self.integer,
-            'text': self.text.upper()
-        }
+    compute = _compute
 
 
 def client_factory(app_class, routes):
     app = app_class(
-        settings={
-            'RENDERERS': [JSONRenderer()]
-        },
+        # settings={
+        #     'RENDERERS': [JSONRenderer()]
+        # },
+        components=components,
         routes=routes
     )
     return TestClient(app)
 
 
-@pytest.mark.parametrize('app_class', [ASyncIOApp, WSGIApp])
+@pytest.mark.parametrize('app_class', [ASyncApp, App])
 def test_url(app_class):
-    def url_argument_view(arg1: str):
-        return arg1.upper()
+    def url_argument_view(arg1: PathParam[str]):
+        return JSONResponse(arg1.upper())
 
     client = client_factory(app_class, [
         Route('/url_argument/{arg1}', 'GET', url_argument_view),
@@ -51,9 +66,9 @@ def test_url(app_class):
     assert res.json() == 'AAA'
 
 
-@pytest.mark.parametrize('app_class', [ASyncIOApp, WSGIApp])
+@pytest.mark.parametrize('app_class', [ASyncApp, App])
 def test_query_simple(app_class):
-    def query_argument_simple_view(arg1: int):
+    def query_argument_simple_view(arg1: QueryParam[int]):
         return arg1 * 10
 
     client = client_factory(app_class, [
@@ -67,16 +82,18 @@ args = {
     'integer': 10,
     'text': 'abc'
 }
+
+
 expected = {
     'integer': 100,
     'text': 'ABC'
 }
 
 
-@pytest.mark.parametrize('app_class', [ASyncIOApp, WSGIApp])
+@pytest.mark.parametrize('app_class', [ASyncApp, App])
 def test_query_model(app_class):
 
-    def query_argument_view(model: QueryData[Model]):
+    def query_argument_view(model: DictQueryData[Model]):
         return model.compute()
 
     client = client_factory(app_class, [
@@ -87,33 +104,10 @@ def test_query_model(app_class):
     assert res.json() == expected
 
 
-@pytest.mark.parametrize('app_class', [ASyncIOApp, WSGIApp])
-def test_form_model(app_class):
-    class FormModel(BaseModel):
-        integer: List[int]
-        text: List[str]
-
-        def compute(self):
-            return {
-                'integer': 10 * self.integer[0],
-                'text': self.text[0].upper()
-            }
-
-    def form_argument_view(model: FormData[FormModel]):
-        return model.compute()
-
-    client = client_factory(app_class, [
-        Route('/form_argument', 'POST', form_argument_view)
-    ])
-
-    res = client.post('/form_argument', data=args)
-    assert res.json() == expected
-
-
-@pytest.mark.parametrize('app_class', [ASyncIOApp, WSGIApp])
+@pytest.mark.parametrize('app_class', [ASyncApp, App])
 def test_body_model(app_class):
 
-    def body_argument_view(model: BodyData[Model]):
+    def body_argument_view(model: DictBodyData[Model]):
         return model.compute()
 
     client = client_factory(app_class, [
@@ -123,12 +117,12 @@ def test_body_model(app_class):
     assert res.json() == expected
 
 
-@pytest.mark.parametrize('app_class', [ASyncIOApp, WSGIApp])
+@pytest.mark.parametrize('app_class', [ASyncApp, App])
 def test_mixed_arguments(app_class):
 
-    def mixed_arguments_view(query: QueryData[Model],
-                             body: BodyData[Model]):
-        return query.integer * body.integer * query.text
+    def mixed_arguments_view(query: DictQueryData[Model],
+                             body: DictBodyData[Model]):
+        return JSONResponse(query.integer * body.integer * query.text)
 
     client = client_factory(app_class, [
         Route('/mixed_arguments', 'POST', mixed_arguments_view)
@@ -147,60 +141,35 @@ def test_mixed_arguments(app_class):
     assert res.json() == 'aaaa'
 
 
-@pytest.mark.parametrize('app_class', [ASyncIOApp, WSGIApp])
-def test_renderer(app_class):
+@pytest.mark.parametrize('app_class', [ASyncApp, App])
+def test_pydantic_model(app_class):
 
-    def render() -> Model:
-        return Model(
-            integer=100,
-            text='ABC'
-        )
-    client = client_factory(app_class, [
-        Route('/render', 'GET', render)
-    ])
-
-    res = client.get('/render')
-    assert res.json() == expected
-
-
-@pytest.mark.parametrize('app_class', [ASyncIOApp, WSGIApp])
-def test_renderer_mixed(app_class):
-
-    def render() -> Dict[str, List[Model]]:
-        return {
-            'model': [Model(integer=100, text='ABC')]
-        }
+    def mixed_arguments_view(query: PydanticQueryData[PydanticModel],
+                             body: PydanticBodyData[PydanticModel]):
+        return JSONResponse(query.integer * body.integer * query.text)
 
     client = client_factory(app_class, [
-        Route('/render', 'GET', render)
+        Route('/mixed_arguments', 'POST', mixed_arguments_view)
     ])
 
-    res = client.get('/render')
-    assert res.json() == {
-        'model': [expected]
-    }
+    res = client.post(
+        '/mixed_arguments',
+        params={
+            'integer': 2,
+            'text': 'a'
+        },
+        json={
+            'integer': 2,
+            'text': ''
+        })
+    assert res.json() == 'aaaa'
 
 
-@pytest.mark.parametrize('app_class', [ASyncIOApp, WSGIApp])
-def test_renderer_datetime(app_class):
-
-    now = datetime.datetime.now()
-
-    def render() -> datetime.datetime:
-        return now
-
-    client = client_factory(app_class, [
-        Route('/render', 'GET', render)
-    ])
-
-    res = client.get('/render')
-    assert res.json() == now.timestamp()
-
-
-@pytest.mark.parametrize('app_class', [ASyncIOApp, WSGIApp])
+@pytest.mark.skip
+@pytest.mark.parametrize('app_class', [ASyncApp, App])
 def test_schema(app_class):
 
-    def add_model(model: BodyData[Model]):
+    def add_model(model: DictBodyData[Model]):
         """
             add_model description
         """
@@ -224,11 +193,10 @@ def test_schema(app_class):
             Route('/list_models', 'GET', list_models),
             Route('/show_model', 'GET', show_model),
             Route('/show/model/{id}', 'GET', show_model2),
-            Route('/schema', 'GET', serve_schema),
         ],
-        settings={
-            'SCHEMA': {'TITLE': 'My API'}
-        }
+        # settings={
+        #     'SCHEMA': {'TITLE': 'My API'}
+        # }
     )
     client = TestClient(app)
 
@@ -301,4 +269,3 @@ def test_schema(app_class):
         assert link.description == document[name].description
         for expected, result in zip(sorted(link.fields), sorted(document[name].fields)):
             assert expected.__class__ == result.__class__
-

@@ -2,8 +2,8 @@ apistar-pydantic
 ################
 
 
-`pydantic <http://github.com/samuelcolvin/pydantic/>`_ integration for
-`APIStar <http://github.com/encode/apistar/>`_.
+Better handler parameters for `APIStar <http://github.com/encode/apistar/>`_
+(and `pydantic <http://github.com/samuelcolvin/pydantic/>`_ support).
 
 
 Installation
@@ -11,13 +11,8 @@ Installation
 
 .. code-block:: sh
 
-    $ pip install apistar-pydantic
+    $ pip install apistar-params
 
-
-Notes
-=====
-
-``datetime.datetime`` objects are serialized with ``timestamp()``.
 
 Usage
 =====
