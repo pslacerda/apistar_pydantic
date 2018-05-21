@@ -3,10 +3,11 @@ import pytest
 from apistar import App, ASyncApp
 from apistar.test import TestClient
 from apistar.http import JSONResponse
+from apistar.server.handlers import serve_schema
 from pydantic import BaseModel
 
 from apistar_pydantic import (
-    PathParam, QueryParam, DictBodyData, DictQueryData,
+    PathParam, QueryParam, BodyData, DictQueryData,
     PydanticBodyData, PydanticQueryData,
     Route, components,
 )
@@ -45,9 +46,6 @@ class PydanticModel(BaseModel):
 
 def client_factory(app_class, routes):
     app = app_class(
-        # settings={
-        #     'RENDERERS': [JSONRenderer()]
-        # },
         components=components,
         routes=routes
     )
@@ -56,25 +54,25 @@ def client_factory(app_class, routes):
 
 @pytest.mark.parametrize('app_class', [ASyncApp, App])
 def test_url(app_class):
-    def url_argument_view(arg1: PathParam[str]):
+    def handler(arg1: PathParam[str]):
         return JSONResponse(arg1.upper())
 
     client = client_factory(app_class, [
-        Route('/url_argument/{arg1}', 'GET', url_argument_view),
+        Route('/resource/{arg1}', 'GET', handler),
     ])
-    res = client.get('/url_argument/aaa')
+    res = client.get('/resource/aaa')
     assert res.json() == 'AAA'
 
 
 @pytest.mark.parametrize('app_class', [ASyncApp, App])
 def test_query_simple(app_class):
-    def query_argument_simple_view(arg1: QueryParam[int]):
+    def handler(arg1: QueryParam[int]):
         return arg1 * 10
 
     client = client_factory(app_class, [
-        Route('/query_argument_simple', 'GET', query_argument_simple_view),
+        Route('/resource', 'GET', handler),
     ])
-    res = client.get('/query_argument_simple', params={'arg1': 10})
+    res = client.get('/resource', params={'arg1': 10})
     assert res.json() == 100
 
 
@@ -93,43 +91,43 @@ expected = {
 @pytest.mark.parametrize('app_class', [ASyncApp, App])
 def test_query_model(app_class):
 
-    def query_argument_view(model: DictQueryData[Model]):
+    def handler(model: DictQueryData[Model]):
         return model.compute()
 
     client = client_factory(app_class, [
-        Route('/query_argument', 'GET', query_argument_view)
+        Route('/resource', 'GET', handler, documented=False)
     ])
 
-    res = client.get('/query_argument', params=args)
+    res = client.get('/resource', params=args)
     assert res.json() == expected
 
 
 @pytest.mark.parametrize('app_class', [ASyncApp, App])
 def test_body_model(app_class):
 
-    def body_argument_view(model: DictBodyData[Model]):
+    def handler(model: BodyData[Model]):
         return model.compute()
 
     client = client_factory(app_class, [
-        Route('/body_argument', 'PUT', body_argument_view)
+        Route('/resource', 'PUT', handler)
     ])
-    res = client.put('/body_argument', json=args)
+    res = client.put('/resource', json=args)
     assert res.json() == expected
 
 
 @pytest.mark.parametrize('app_class', [ASyncApp, App])
 def test_mixed_arguments(app_class):
 
-    def mixed_arguments_view(query: DictQueryData[Model],
-                             body: DictBodyData[Model]):
+    def handler(query: DictQueryData[Model],
+                body: BodyData[Model]):
         return JSONResponse(query.integer * body.integer * query.text)
 
     client = client_factory(app_class, [
-        Route('/mixed_arguments', 'POST', mixed_arguments_view)
+        Route('/resource', 'POST', handler, documented=False)
     ])
 
     res = client.post(
-        '/mixed_arguments',
+        '/resource',
         params={
             'integer': 2,
             'text': 'a'
@@ -144,16 +142,16 @@ def test_mixed_arguments(app_class):
 @pytest.mark.parametrize('app_class', [ASyncApp, App])
 def test_pydantic_model(app_class):
 
-    def mixed_arguments_view(query: PydanticQueryData[PydanticModel],
-                             body: PydanticBodyData[PydanticModel]):
+    def handler(query: PydanticQueryData[PydanticModel],
+                body: PydanticBodyData[PydanticModel]):
         return JSONResponse(query.integer * body.integer * query.text)
 
     client = client_factory(app_class, [
-        Route('/mixed_arguments', 'POST', mixed_arguments_view)
+        Route('/resource', 'POST', handler, documented=False)
     ])
 
     res = client.post(
-        '/mixed_arguments',
+        '/resource',
         params={
             'integer': 2,
             'text': 'a'
@@ -165,14 +163,11 @@ def test_pydantic_model(app_class):
     assert res.json() == 'aaaa'
 
 
-@pytest.mark.skip
 @pytest.mark.parametrize('app_class', [ASyncApp, App])
 def test_schema(app_class):
 
-    def add_model(model: DictBodyData[Model]):
-        """
-            add_model description
-        """
+    def add_model(model: BodyData[Model]):
+        """add_model description"""
         return model.integer
 
     def list_models():
@@ -183,7 +178,7 @@ def test_schema(app_class):
         """show_model description"""
         return
 
-    def show_model2(id: int):
+    def show_model2(id: PathParam[int], name: QueryParam[str]):
         """show_model2 description"""
         return
 
@@ -193,79 +188,73 @@ def test_schema(app_class):
             Route('/list_models', 'GET', list_models),
             Route('/show_model', 'GET', show_model),
             Route('/show/model/{id}', 'GET', show_model2),
+            Route('/schema/', 'GET', handler=serve_schema, documented=False),
         ],
         # settings={
         #     'SCHEMA': {'TITLE': 'My API'}
         # }
     )
     client = TestClient(app)
-
-    schema = Schema(title='My API', url='/schema/', content={
-        'add_model': Link(
-            url='/add_model',
-            action='POST',
-            description='add_model description',
-            fields=[
-                Field(
-                    name='integer',
-                    location='form',
-                    required=True,
-                    schema=coreschema.Integer()
-                ),
-                Field(
-                    name='text',
-                    location='form',
-                    required=True,
-                    schema=coreschema.String()
-                )
-            ]
-        ),
-        'list_models': Link(
-            url='/list_models',
-            action='GET',
-            description='list_models description',
-            fields=[]
-        ),
-        'show_model': Link(
-            url='/show_model',
-            action='GET',
-            description='show_model description',
-            fields=[
-                Field(
-                    name='id',
-                    location='query',
-                    required=True,
-                    schema=coreschema.Integer()
-                )
-            ]
-        ),
-        'show_model2': Link(
-            url='/show/model/{id}',
-            action='GET',
-            description='show_model2 description',
-            fields=[
-                Field(
-                    name='id',
-                    location='path',
-                    required=True,
-                    schema=coreschema.Integer()
-                )
-            ]
-        )
-    })
-
     res = client.get('/schema')
     assert res.status_code == 200
-
-    codec = CoreJSONCodec()
-    document = codec.decode(res.content)
-
-    assert document.url == '/schema'
-    assert document.title == schema.title
-    for name, link in schema.links.items():
-        assert name in document
-        assert link.url == document[name].url
-        assert link.action == document[name].action
-        assert link.description == document[name].description
-        for expected, result in zip(sorted(link.fields), sorted(document[name].fields)):
-            assert expected.__class__ == result.__class__
+    assert res.json() == {
+        'openapi': '3.0.0',
+        'info': {
+            'title': '',
+            'description': '',
+            'version': ''
+        },
+        'paths': {
+            '/add_model': {
+                'post': {
+                    'description': 'add_model description',
+                    'operationId': 'add_model',
+                    'requestBody': {
+                        'content': {
+                            'application/json': {
+                                'schema': {'type': 'object'}
+                            }
+                        }
+                    }
+                }
+            },
+            '/list_models': {
+                'get': {
+                    'description': 'list_models description',
+                    'operationId': 'list_models'
+                }
+            },
+            '/show_model': {
+                'get': {
+                    'description': 'show_model description',
+                    'operationId': 'show_model',
+                    'parameters': [
+                        {
+                            'name': 'id',
+                            'in': 'query',
+                            'schema': {'type': 'integer'}
+                        }
+                    ]
+                }
+            },
+            '/show/model/{id}': {
+                'get': {
+                    'description': 'show_model2 description',
+                    'operationId': 'show_model2',
+                    'parameters': [
+                        {
+                            'name': 'id',
+                            'in': 'path',
+                            'required': True,
+                            'schema': {'type': 'integer'}
+                        },
+                        {
+                            'name': 'name',
+                            'in': 'query',
+                            'schema': {'type': 'string'}
+                        }
+                    ]
+                }
+            }
+        }
+    }
