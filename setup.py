@@ -7,7 +7,7 @@ with open('README.rst') as readme_file:
 
 setup(
     name='apistar-pydantic',
-    version='0.0.2',
+    version='0.0.5',
     description="Better handler parameters for APIStar (and pydantic support)",
     long_description=readme,
     author="Pedro Sousa Lacerda",
